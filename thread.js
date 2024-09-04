@@ -1,4 +1,4 @@
-class PerlinNoise2D {
+  class PerlinNoise2D {
     constructor(seed = 0) {
       this.p = new Uint8Array(512);
       this.perm = new Uint8Array(512);
