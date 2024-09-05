@@ -177,7 +177,7 @@ function windowResized() {
 document.addEventListener("mousedown", function (event) {
     if (event.button === 0) { // Left mouse button
         requestPointerLock();
-        world.removeBlock(player.facing.x, player.facing.y, player.facing.z);
+        //world.removeBlock(player.facing.x, player.facing.y, player.facing.z);
         mouse.l = true;
     }
     if (event.button === 2) { // Right mouse button

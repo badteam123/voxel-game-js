@@ -10,7 +10,7 @@ class Block {
           this.hx;
           this.ly;
           this.hy;
-
+          
           switch (type) {
               case "grass":
                   this.lx = 0.0;
