@@ -3,9 +3,22 @@ class World {
         this.chunk = {};
         this.chunkModel = {};
 
-        this.chunkSize = 8;
+        this.chunkSize = 64;
 
         this.seed = Math.random() * 100;
+
+        this.initialLoad = {
+            horizP: 1,
+            horizN: 1,
+            vertP: 0,
+            vertN: 1
+        }
+
+        this.ground = {
+            scaleX: 0.05,
+            scaleY: 7,
+            scaleZ: 0.05
+        }
 
         this.cave = {
             scaleX: 1,
@@ -16,14 +29,24 @@ class World {
     }
 
     generateSpawn() {
-        for (let x = 0; x < 1; x++) {
-            for (let y = -1; y < 0; y++) {
-                for (let z = -1; z < 0; z++) {
+        for (let x = -this.initialLoad.horizN; x < this.initialLoad.horizP+1; x++) {
+            for (let y = -this.initialLoad.vertN; y < this.initialLoad.vertP+1; y++) {
+                for (let z = -this.initialLoad.horizN; z < this.initialLoad.horizP+1; z++) {
                     this.generateChunk(x, y, z);
+                }
+            }
+        }
+        for (let x = -this.initialLoad.horizN; x < this.initialLoad.horizP+1; x++) {
+            for (let y = -this.initialLoad.vertN; y < this.initialLoad.vertP+1; y++) {
+                for (let z = -this.initialLoad.horizN; z < this.initialLoad.horizP+1; z++) {
                     this.compileChunk(x, y, z);
                 }
             }
         }
+
+        player.x = this.chunkSize/2;
+        player.y = 6;
+        player.z = this.chunkSize/2;
     }
 
     compileChunk(xc, yc, zc) {
@@ -43,9 +66,38 @@ class World {
         for (let x2 = 0; x2 < this.chunkSize; x2++) {
             for (let y2 = 0; y2 < this.chunkSize; y2++) {
                 for (let z2 = 0; z2 < this.chunkSize; z2++) {
-                    let block = this.chunk[xc][yc][zc][x2][y2][z2];
+                    let templx;
+                    let temply;
+                    switch(this.chunk[xc][yc][zc][x2][y2][z2]){
+                        case -1:
+                            templx = 0;
+                            temply = 0;
+                            break;
+                        case 0:
+                            templx = 0;
+                            temply = 0.9;
+                            break;
+                        case 1:
+                            templx = 0.1;
+                            temply = 0.9;
+                            break;
+                        case 2:
+                            templx = 0.2;
+                            temply = 0.9;
+                            break;
+                    }
 
-                    if (block.type != null) {
+                    let block = {
+                        x: x2 + (xc*this.chunkSize),
+                        y: y2 + (yc*this.chunkSize),
+                        z: z2 + (zc*this.chunkSize),
+                        lx: templx,
+                        ly: temply,
+                        hx: templx + 0.1,
+                        hy: temply + 0.1
+                    };
+
+                    if (this.chunk[xc][yc][zc][x2][y2][z2] != -1) {
 
                         // Back (z-)
                         if (!this.getBlock(block.x, block.y, block.z - 1)) {
@@ -138,7 +190,7 @@ class World {
         }
 
         let vertices2 = new Float32Array(vertices);
-        let indices2 = new Uint16Array(indices);
+        let indices2 = new Uint32Array(indices);
         let UVs2 = new Float32Array(UVs);
 
         let geometry = new THREE.BufferGeometry();
@@ -164,10 +216,11 @@ class World {
                 for (let z2 = 0; z2 < this.chunkSize; z2++) {
                     let x3 = x2 + (x * this.chunkSize);
                     let z3 = z2 + (z * this.chunkSize);
-                    let groundHeight = perlin2D.noise((x3 * 0.1) + 1255, (z3 * 0.1) + 2367);
+                    let groundHeight = Math.round(perlin2D.noise((x3 * this.ground.scaleX) + 1255, (z3 * this.ground.scaleZ) + 2367)*this.ground.scaleY);
                     for (let y2 = 0; y2 < this.chunkSize; y2++) {
                         let y3 = y2 + (y * this.chunkSize);
                         if (perlin3D.noise(x3 * this.cave.scaleX + 1246, y3 * this.cave.scaleY + 1285, z3 * this.cave.scaleZ + 1983) < this.cave.threshold) {
+                            
                             // grass
                             if (y3 === groundHeight) {
                                 this.chunk[x][y][z][x2][y2][z2] = 0; //new Block("grass", x3, y3, z3);
@@ -197,6 +250,7 @@ class World {
 
     ensureChunkExists(x, y, z, blockMode) {
         let [x2, y2, z2] = [x, y, z];
+        let ck;
         if (blockMode) {
             ck = this.gc(x, y, z);
             [x2, y2, z2] = ck;
@@ -232,6 +286,7 @@ class World {
 
     doesChunkExist(x, y, z, blockMode) {
         let [x2, y2, z2] = [x, y, z];
+        let ck;
         if (blockMode) {
             ck = this.gc(x, y, z);
             [x2, y2, z2] = ck;
@@ -242,7 +297,7 @@ class World {
     getBlock(x, y, z) {
         let ck = this.gc(x, y, z);
         if (this.doesChunkExist(ck[0], ck[1], ck[2], false)) {
-            return this.chunk[ck[0]][ck[1]][ck[2]][Math.abs(x % this.chunkSize)][Math.abs(y % this.chunkSize)][Math.abs(z % this.chunkSize)].type != null;
+            return this.chunk[ck[0]][ck[1]][ck[2]][mod(x, this.chunkSize)][mod(y, this.chunkSize)][mod(z, this.chunkSize)] != -1;
         }
     }
 
@@ -250,7 +305,7 @@ class World {
         if (arguments.length === 4) {
             let ck = this.gc(x, y, z);
             if (this.doesChunkExist(gc[0], gc[1], gc[2])) {
-                this.chunk[ck[0]][ck[1]][ck[2]][x % this.chunkSize][y % this.chunkSize][z % this.chunkSize] = type; //new Block(type, x, y, z);
+                this.chunk[ck[0]][ck[1]][ck[2]][mod(x, this.chunkSize)][mod(y, this.chunkSize)][mod(z, this.chunkSize)] = type; //new Block(type, x, y, z);
             }
         } else {
             if (this.doesChunkExist(cx, cy, cz)) {
@@ -262,13 +317,17 @@ class World {
     setBlockRaw(type, x, y, z, cx, cy, cz) {
         if (arguments.length === 4) {
             let ck = this.gc(x, y, z);
-            this.chunk[ck[0]][ck[1]][ck[2]][x % this.chunkSize][y % this.chunkSize][z % this.chunkSize] = type; //new Block(type, x, y, z);
+            this.chunk[ck[0]][ck[1]][ck[2]][mod(x, this.chunkSize)][mod(y, this.chunkSize)][mod(z, this.chunkSize)] = type; //new Block(type, x, y, z);
         } else {
             this.chunk[cx][cy][cz][x][y][z] = type; //new Block(type, x, y, z);
         }
     }
 
     gc(x, y, z) {
-        return [Math.round(x / this.chunkSize), Math.round(y / this.chunkSize), Math.round(z / this.chunkSize)];
+        return [Math.floor(x / this.chunkSize), Math.floor(y / this.chunkSize), Math.floor(z / this.chunkSize)];
     }
+}
+
+function mod(n, m) {
+    return ((n % m) + m) % m;
 }
